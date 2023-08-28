@@ -24,7 +24,7 @@ def stable_track(height=12, width=12, mode="blank"):
         return np.array(out)
 
 
-def gen_run(policy, track, training=True, verbose=False, max_iters=500):
+def gen_run(policy, track, explore, training=True, verbose=False, max_iters=500):
     terminal = False
     num_iters = 0
     # random starting row
@@ -50,8 +50,11 @@ def gen_run(policy, track, training=True, verbose=False, max_iters=500):
         except KeyError:
             a = policy(0)  # optional change?
         if training:
-            if rng.uniform() <= noise_chance:
+            noise_compare = rng.uniform()
+            if noise_compare <= noise_chance:
                 a = (0, 0)
+            elif noise_compare >= 1-explore:
+                a = tuple(rng.choice([(0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1), (-1, -1), (-1, 0), (-1, 1)]))
         history.append(((i, j, v1, v2), a, reward))
         if verbose:
             print(history[-1])
@@ -178,8 +181,9 @@ if __name__ == "__main__":
     # Begin doing runs
     num_episodes = 200
     discount = 0.75
+    explore_factor = 0.05
     for i in range(num_episodes):
-        run = gen_run(p, track, max_iters=1000)
+        run = gen_run(p, track, explore_factor, max_iters=1000)
         run_length.append(len(run))
         G = 0
         # print(f"Run {i+1} generated.")
@@ -198,7 +202,7 @@ if __name__ == "__main__":
             old = q[(step[0], step[1])][0]
             q[(step[0], step[1])][1] += 1  # update count for averaging
             dnom = q[(step[0], step[1])][1]
-            q[(step[0], step[1])][0] = np.around(old + 1 / dnom * (G - old), decimals=7)
+            q[(step[0], step[1])][0] = np.around((old + 1 / dnom * (G - old)), decimals=7)
 
             # Update policy
             best_action = np.argmax([q[step[0], a][0] for a in actions])
